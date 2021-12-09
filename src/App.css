@@ -1,0 +1,3 @@
+.App {
+  @apply bg-white min-h-screen flex flex-col items-center justify-center font-sans text-base text-black
+}
