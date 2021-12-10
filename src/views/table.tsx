@@ -8,6 +8,7 @@ interface TableViewProps {
 
 interface TableRowProps {
   customer: Customer
+  onDelete: (customerId: number) => void
 }
 
 interface CurrencyProps {
@@ -54,7 +55,7 @@ function StatusPill ({ status }: StatusPillProps) {
 }
 
 
-function TableRow ({ customer }: TableRowProps) {
+function TableRow ({ customer, onDelete }: TableRowProps) {
   return (
     <tr>
       <td></td>
@@ -71,7 +72,7 @@ function TableRow ({ customer }: TableRowProps) {
       <td><ColoredCurrency currencyValue={customer.balance}/></td>
       <td><Currency currencyValue={customer.deposit}/></td>
       <td><StatusPill status={customer.status} /></td>
-      <td><img src="./src/components/atoms/icons/Delete.png" /></td>
+      <td><button className="cursor-pointer p-1" onClick={() => onDelete(customer.id)}><img src="./src/components/atoms/icons/Delete.png" /></button></td>
     </tr>
   )
 }
@@ -116,6 +117,8 @@ export function TableView ({ customers }: TableViewProps) {
   const perPage = 10
 
   const [searchInput, setSearchInput] = useState('')
+  const [mutableCustomers, updateCustomers] = useState(customers)
+  const [currentPage, setPage] = useState(1)
   const [nameSortState, setNameSortState] = useState(SortState.UNDEFINED)
   const [statusSortState, setStatusSortState] = useState(SortState.UNDEFINED)
 
@@ -128,27 +131,41 @@ export function TableView ({ customers }: TableViewProps) {
     setStatusSortState(nextSortingState(statusSortState))
   }
 
+  const onDelete = (id: number) => {
+    updateCustomers(mutableCustomers.filter(customer => customer.id !== id))
+  }
+
   const filteredCustomers = useMemo(() => 
-    customers
-    // filter with search input
-    .filter(filteringFunction)
-    .sort(sortFunction)
-    // slice with the pagination
-    .slice(0, perPage),
-    [searchInput, nameSortState, statusSortState, customers]
+    mutableCustomers
+      // filter with search input
+      .filter(filteringFunction)
+      .sort(sortFunction),
+    [searchInput, nameSortState, statusSortState, mutableCustomers]
   )
-  const maxPages = useMemo(() => Math.floor(customers.length / perPage) + (customers.length % perPage === 0 ? 0 : 1), [customers, perPage])
+
+  // slice customers with pagination
+  const pagedCustomers = useMemo(() =>
+    filteredCustomers
+      .slice((currentPage - 1) * perPage, currentPage * perPage),
+    [currentPage, perPage, filteredCustomers, mutableCustomers]
+  )
+  const maxPages = useMemo(() => Math.floor(mutableCustomers.length / perPage) + (mutableCustomers.length % perPage === 0 ? 0 : 1), [mutableCustomers, perPage])
 
   const onInputChange = (evt: ChangeEvent<HTMLInputElement>) => {
+    if (currentPage > 1) {
+      setPage(1) // go back to page 1
+    }
     setSearchInput(evt.target.value)
   }
 
   const goToPrevPage = () => {
     // go to the previous page
     console.log(maxPages)
+    setPage(Math.max(currentPage - 1, 1))
   }
   const goToNextPage = () => {
     // go to the next page
+    setPage(Math.min(currentPage + 1, maxPages))
   }
 
   return (
@@ -171,7 +188,7 @@ export function TableView ({ customers }: TableViewProps) {
         </tr>
       </thead>
       <tbody>
-        {filteredCustomers.map(customer => <TableRow key={customer.id} customer={customer} />)}
+        {pagedCustomers.map(customer => <TableRow key={customer.id} onDelete={onDelete} customer={customer} />)}
       </tbody>
       <tfoot className="w-full">
         <tr>
